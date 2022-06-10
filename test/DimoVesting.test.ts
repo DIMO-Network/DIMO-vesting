@@ -23,6 +23,7 @@ describe("dimoVesting", function () {
   const beneficiary2 = addr2.address;
   const startTime = (+new Date() / 1000) | 0; // Truncate 3 decimals
   const cliff = 60 * 60 * 24 * 365; // 1 year
+  // const cliff = 60 * 60 * 24 * 365 * 5; // 1 year
   const duration = 60 * 60 * 24 * 365 * 4; // 4 years
   const amount = 9408471;
 
@@ -76,6 +77,26 @@ describe("dimoVesting", function () {
           )
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
+    it("Should revert if vesting schedule is already initialized", async () => {
+      await mockToken.transfer(dimoVesting.address, amount);
+      await dimoVesting.createVestingSchedule(
+        beneficiary1,
+        startTime,
+        cliff,
+        duration,
+        amount
+      );
+
+      await expect(
+        dimoVesting.createVestingSchedule(
+          beneficiary1,
+          startTime,
+          cliff,
+          duration,
+          amount
+        )
+      ).to.be.revertedWith("Already initialized");
+    });
     it("Should revert if duration is not greater than zero", async () => {
       await expect(
         dimoVesting.createVestingSchedule(
@@ -98,6 +119,17 @@ describe("dimoVesting", function () {
         )
       ).to.be.revertedWith("Amount must be > 0");
     });
+    it("Should revert if cliff is not less than the duration", async () => {
+      await expect(
+        dimoVesting.createVestingSchedule(
+          beneficiary1,
+          startTime,
+          duration * 2,
+          duration,
+          amount
+        )
+      ).to.be.revertedWith("Cliff must be <= duration");
+    });
     it("Should vest tokens gradually", async () => {
       await expect(
         dimoVesting.createVestingSchedule(
@@ -119,9 +151,9 @@ describe("dimoVesting", function () {
         duration,
         amount
       );
-      expect(await dimoVesting.getVestingSchedulesTotalAmount()).to.equal(
-        amount
-      );
+      expect(
+        await dimoVesting.getVestingSchedulesTotalAmountCommitted()
+      ).to.equal(amount);
     });
     it("Should emit VestingScheduleCreated event with correct params", async () => {
       await mockToken.transfer(dimoVesting.address, amount);
@@ -164,6 +196,21 @@ describe("dimoVesting", function () {
         "Vesting schedule was revoked"
       );
     });
+    it("Should set vesting schedule as not initialized", async () => {
+      const vestingScheduleBefore: VestingSchedule =
+        await dimoVesting.getVestingSchedule(beneficiary1);
+
+      // eslint-disable-next-line no-unused-expressions
+      expect(vestingScheduleBefore.initialized).to.be.true;
+
+      await dimoVesting.revoke(beneficiary1);
+
+      const vestingScheduleAfter: VestingSchedule =
+        await dimoVesting.getVestingSchedule(beneficiary1);
+
+      // eslint-disable-next-line no-unused-expressions
+      expect(vestingScheduleAfter.initialized).to.be.false;
+    });
     it("Should set vesting schedule as revoked", async () => {
       const vestingScheduleBefore: VestingSchedule =
         await dimoVesting.getVestingSchedule(beneficiary1);
@@ -189,7 +236,9 @@ describe("dimoVesting", function () {
       it("Should correctly update vesting schedules total amount", async () => {
         await dimoVesting.revoke(beneficiary1);
 
-        expect(await dimoVesting.getVestingSchedulesTotalAmount()).to.equal(0);
+        expect(
+          await dimoVesting.getVestingSchedulesTotalAmountCommitted()
+        ).to.equal(0);
       });
       it("Should emit Revoked event with correct params", async () => {
         await expect(dimoVesting.revoke(beneficiary1))
@@ -214,7 +263,9 @@ describe("dimoVesting", function () {
       it("Should correctly update vesting schedules total amount", async () => {
         await dimoVesting.revoke(beneficiary1);
 
-        expect(await dimoVesting.getVestingSchedulesTotalAmount()).to.equal(0);
+        expect(
+          await dimoVesting.getVestingSchedulesTotalAmountCommitted()
+        ).to.equal(0);
       });
       it("Should emit Revoked event with correct params", async () => {
         await expect(dimoVesting.revoke(beneficiary1))
@@ -434,11 +485,13 @@ describe("dimoVesting", function () {
     });
   });
 
-  describe("getVestingSchedulesTotalAmount", () => {
+  describe("getVestingSchedulesTotalAmountCommitted", () => {
     it("Should return 0 if no vesting schedule was created", async () => {
       await mockToken.transfer(dimoVesting.address, amount);
 
-      expect(await dimoVesting.getVestingSchedulesTotalAmount()).to.equal(0);
+      expect(
+        await dimoVesting.getVestingSchedulesTotalAmountCommitted()
+      ).to.equal(0);
     });
     it("Should return correct amount after vesting schedules creation", async () => {
       await mockToken.transfer(dimoVesting.address, amount * 2 + 10);
@@ -457,9 +510,9 @@ describe("dimoVesting", function () {
         amount
       );
 
-      expect(await dimoVesting.getVestingSchedulesTotalAmount()).to.equal(
-        amount * 2
-      );
+      expect(
+        await dimoVesting.getVestingSchedulesTotalAmountCommitted()
+      ).to.equal(amount * 2);
     });
   });
 
@@ -468,8 +521,8 @@ describe("dimoVesting", function () {
       const vestingSchedule: VestingSchedule =
         await dimoVesting.getVestingSchedule(beneficiary1);
 
-      expect(vestingSchedule.beneficiary).to.equal(ZERO_ADDRESS);
-      expect(vestingSchedule.cliff).to.equal(0);
+      expect(vestingSchedule.initialized).to.be.false;
+      expect(vestingSchedule.cliffEnd).to.equal(0);
       expect(vestingSchedule.start).to.equal(0);
       expect(vestingSchedule.duration).to.equal(0);
       expect(vestingSchedule.amountTotal).to.equal(0);
@@ -490,8 +543,8 @@ describe("dimoVesting", function () {
       const vestingSchedule: VestingSchedule =
         await dimoVesting.getVestingSchedule(beneficiary1);
 
-      expect(vestingSchedule.beneficiary).to.equal(beneficiary1);
-      expect(vestingSchedule.cliff).to.equal(startTime + cliff);
+      expect(vestingSchedule.initialized).to.be.true;
+      expect(vestingSchedule.cliffEnd).to.equal(startTime + cliff);
       expect(vestingSchedule.start).to.equal(startTime);
       expect(vestingSchedule.duration).to.equal(duration);
       expect(vestingSchedule.amountTotal).to.equal(amount);
@@ -513,6 +566,11 @@ describe("dimoVesting", function () {
       );
     });
 
+    it("Should return 0 if address is not a beneficiary", async () => {
+      expect(await dimoVesting.computeReleasableAmount(beneficiary2)).to.equal(
+        0
+      );
+    });
     it("Should return 0 if the cliff was not reached", async () => {
       expect(await dimoVesting.computeReleasableAmount(beneficiary1)).to.equal(
         0

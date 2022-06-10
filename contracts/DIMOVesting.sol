@@ -10,10 +10,9 @@ contract DIMOVesting is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     struct VestingSchedule {
-        // beneficiary of tokens after they are released
-        address beneficiary;
-        // cliff period in seconds
-        uint256 cliff;
+        bool initialized;
+        // time of the end of the cliff period
+        uint256 cliffEnd;
         // start time of the vesting period
         uint256 start;
         // duration of the vesting period in seconds
@@ -30,7 +29,7 @@ contract DIMOVesting is Ownable, ReentrancyGuard {
     IERC20 private immutable _token;
 
     mapping(address => VestingSchedule) private vestingSchedules;
-    uint256 private vestingSchedulesTotalAmount;
+    uint256 private vestingSchedulesTotalAmountCommitted;
 
     event VestingScheduleCreated(address indexed beneficiary, uint256 amount);
     event Released(address indexed beneficiary, uint256 amount);
@@ -64,13 +63,15 @@ contract DIMOVesting is Ownable, ReentrancyGuard {
         uint256 _cliff,
         uint256 _duration,
         uint256 _amount
-    ) external onlyOwner nonReentrant {
+    ) external onlyOwner {
+        require(!vestingSchedules[_beneficiary].initialized, "Already initialized");
         require(_duration > 0, "Duration must be > 0");
         require(_amount > 0, "Amount must be > 0");
+        require(_cliff <= _duration, "Cliff must be <= duration");
         require(getWithdrawableAmount() >= _amount, "Not sufficient tokens");
 
         vestingSchedules[_beneficiary] = VestingSchedule(
-            _beneficiary,
+            true,
             _start + _cliff,
             _start,
             _duration,
@@ -79,7 +80,7 @@ contract DIMOVesting is Ownable, ReentrancyGuard {
             false
         );
 
-        vestingSchedulesTotalAmount = vestingSchedulesTotalAmount + _amount;
+        vestingSchedulesTotalAmountCommitted += _amount;
 
         emit VestingScheduleCreated(_beneficiary, _amount);
     }
@@ -101,8 +102,9 @@ contract DIMOVesting is Ownable, ReentrancyGuard {
             _token.safeTransfer(owner(), unreleased);
         }
 
+        vestingSchedule.initialized = false;
         vestingSchedule.revoked = true;
-        vestingSchedulesTotalAmount = vestingSchedulesTotalAmount - unreleased;
+        vestingSchedulesTotalAmountCommitted -= unreleased;
 
         emit Revoked(_beneficiary, unreleased);
     }
@@ -117,15 +119,15 @@ contract DIMOVesting is Ownable, ReentrancyGuard {
     {
         VestingSchedule storage vestingSchedule = vestingSchedules[beneficiary];
         require(
-            msg.sender == vestingSchedule.beneficiary || msg.sender == owner(),
+            msg.sender == beneficiary || msg.sender == owner(),
             "Only beneficiary and owner can release vested tokens"
         );
 
         uint256 releasableAmount = _computeReleasableAmount(vestingSchedule);
         require(releasableAmount >= amount, "Not enough vested tokens");
 
-        vestingSchedule.released = vestingSchedule.released + amount;
-        vestingSchedulesTotalAmount = vestingSchedulesTotalAmount - amount;
+        vestingSchedule.released += amount;
+        vestingSchedulesTotalAmountCommitted -= amount;
 
         _token.safeTransfer(beneficiary, amount);
 
@@ -148,8 +150,8 @@ contract DIMOVesting is Ownable, ReentrancyGuard {
     }
 
     /// @notice Returns the total amount of vesting schedules
-    function getVestingSchedulesTotalAmount() external view returns (uint256) {
-        return vestingSchedulesTotalAmount;
+    function getVestingSchedulesTotalAmountCommitted() external view returns (uint256) {
+        return vestingSchedulesTotalAmountCommitted;
     }
 
     /// @notice Returns the vesting schedule information for a given identifier
@@ -180,28 +182,28 @@ contract DIMOVesting is Ownable, ReentrancyGuard {
     /// @dev Returns the amount of tokens that can be withdrawn by the owner
     /// @return the amount of tokens
     function getWithdrawableAmount() public view returns (uint256) {
-        return _token.balanceOf(address(this)) - vestingSchedulesTotalAmount;
+        return _token.balanceOf(address(this)) - vestingSchedulesTotalAmountCommitted;
     }
 
     /// @dev Computes the releasable amount of tokens for a vesting schedule
     /// @param vestingSchedule vesting schedule struct
-    /// @return vestedAmount the amount of releasable tokens
+    /// @return releasableAmount the amount of releasable tokens
     function _computeReleasableAmount(VestingSchedule memory vestingSchedule)
         private
         view
-        returns (uint256 vestedAmount)
+        returns (uint256 releasableAmount)
     {
         uint256 currentTime = block.timestamp;
 
         if (currentTime >= vestingSchedule.start + vestingSchedule.duration) {
-            vestedAmount =
+            releasableAmount =
                 vestingSchedule.amountTotal -
                 vestingSchedule.released;
-        } else if (currentTime > vestingSchedule.cliff) {
+        } else if (currentTime > vestingSchedule.cliffEnd) {
             uint256 timeFromStart = currentTime - vestingSchedule.start;
-            uint256 vestedAmountTotal = (vestingSchedule.amountTotal *
+            uint256 vestedAmount = (vestingSchedule.amountTotal *
                 timeFromStart) / vestingSchedule.duration;
-            vestedAmount = vestedAmountTotal - vestingSchedule.released;
+            releasableAmount = vestedAmount - vestingSchedule.released;
         }
     }
 }

@@ -1,8 +1,8 @@
 import { BigNumber } from "ethers";
 
 export type VestingSchedule = {
-  beneficiary: String;
-  cliff: BigNumber;
+  initialized: boolean;
+  cliffEnd: BigNumber;
   start: BigNumber;
   duration: BigNumber;
   amountTotal: BigNumber;
