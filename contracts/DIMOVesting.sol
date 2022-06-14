@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+/// @dev derived from https://github.com/abdelhamidbakhta/token-vesting-contracts (Apache-2.0)
 contract DIMOVesting is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
