@@ -97,15 +97,16 @@ contract DIMOVesting is Ownable, ReentrancyGuard {
             _beneficiary
         ];
 
-        uint256 unreleased = vestingSchedule.amountTotal -
-            vestingSchedule.released;
-        if (unreleased > 0) {
-            _token.safeTransfer(owner(), unreleased);
-        }
-
         vestingSchedule.initialized = false;
         vestingSchedule.revoked = true;
-        vestingSchedulesTotalAmountCommitted -= unreleased;
+
+        uint256 unreleased = vestingSchedule.amountTotal -
+            vestingSchedule.released;
+
+        if (unreleased > 0) {
+            vestingSchedulesTotalAmountCommitted -= unreleased;
+            _token.safeTransfer(owner(), unreleased);
+        }
 
         emit Revoked(_beneficiary, unreleased);
     }
