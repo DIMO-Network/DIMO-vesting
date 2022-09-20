@@ -126,7 +126,7 @@ contract DIMOVesting is Ownable, ReentrancyGuard {
         );
 
         uint256 releasableAmount = _computeReleasableAmount(vestingSchedule);
-        require(releasableAmount >= amount, "Not enough vested tokens");
+        require(releasableAmount >= amount, "Amount is too high");
 
         vestingSchedule.released += amount;
         vestingSchedulesTotalAmountCommitted -= amount;

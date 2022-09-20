@@ -322,7 +322,7 @@ describe("dimoVesting", function () {
     it("Should revert if amount requested is greater than releasable amount", async () => {
       await expect(
         dimoVesting.release(beneficiary1, amount * 2)
-      ).to.be.revertedWith("Not enough vested tokens");
+      ).to.be.revertedWith("Amount is too high");
     });
 
     context("When only the cliff amount is released", () => {
