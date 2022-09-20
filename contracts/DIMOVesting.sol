@@ -5,9 +5,10 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./ConfirmedOwnerWithProposal.sol";
 
 /// @dev derived from https://github.com/abdelhamidbakhta/token-vesting-contracts (Apache-2.0)
-contract DIMOVesting is Ownable, ReentrancyGuard {
+contract DIMOVesting is ConfirmedOwnerWithProposal, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     struct VestingSchedule {
@@ -65,7 +66,10 @@ contract DIMOVesting is Ownable, ReentrancyGuard {
         uint256 _duration,
         uint256 _amount
     ) external onlyOwner {
-        require(!vestingSchedules[_beneficiary].initialized, "Already initialized");
+        require(
+            !vestingSchedules[_beneficiary].initialized,
+            "Already initialized"
+        );
         require(_duration > 0, "Duration must be > 0");
         require(_amount > 0, "Amount must be > 0");
         require(_cliff <= _duration, "Cliff must be <= duration");
@@ -152,7 +156,11 @@ contract DIMOVesting is Ownable, ReentrancyGuard {
     }
 
     /// @notice Returns the total amount of vesting schedules
-    function getVestingSchedulesTotalAmountCommitted() external view returns (uint256) {
+    function getVestingSchedulesTotalAmountCommitted()
+        external
+        view
+        returns (uint256)
+    {
         return vestingSchedulesTotalAmountCommitted;
     }
 
@@ -184,7 +192,9 @@ contract DIMOVesting is Ownable, ReentrancyGuard {
     /// @dev Returns the amount of tokens that can be withdrawn by the owner
     /// @return the amount of tokens
     function getWithdrawableAmount() public view returns (uint256) {
-        return _token.balanceOf(address(this)) - vestingSchedulesTotalAmountCommitted;
+        return
+            _token.balanceOf(address(this)) -
+            vestingSchedulesTotalAmountCommitted;
     }
 
     /// @dev Computes the releasable amount of tokens for a vesting schedule
