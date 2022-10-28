@@ -17,13 +17,12 @@ describe("dimoVesting", function () {
   let mockToken: MockToken;
   let dimoVesting: DIMOVesting;
 
-  const [owner, nonOwner, addr1, addr2] = provider.getWallets();
+  const [owner, nonOwner, newOwner, addr1, addr2] = provider.getWallets();
 
   const beneficiary1 = addr1.address;
   const beneficiary2 = addr2.address;
   const startTime = (+new Date() / 1000) | 0; // Truncate 3 decimals
   const cliff = 60 * 60 * 24 * 365; // 1 year
-  // const cliff = 60 * 60 * 24 * 365 * 5; // 1 year
   const duration = 60 * 60 * 24 * 365 * 4; // 4 years
   const amount = 9408471;
 
@@ -61,6 +60,41 @@ describe("dimoVesting", function () {
         mockToken.address
       );
     });
+    it("Should correctly set owner", async () => {
+      expect(await dimoVesting.owner()).to.equal(owner.address);
+    });
+  });
+
+  describe("transferOwnership", async () => {
+    it("Should revert if caller is not the owner", async () => {
+      await expect(
+        dimoVesting.connect(nonOwner).transferOwnership(nonOwner.address)
+      ).to.be.revertedWith("Only callable by owner");
+    });
+  });
+
+  describe("acceptOwnership", async () => {
+    it("Should revert if caller is not the pending owner", async () => {
+      await dimoVesting.connect(owner).transferOwnership(newOwner.address);
+
+      await expect(
+        dimoVesting.connect(nonOwner).acceptOwnership()
+      ).to.be.revertedWith("Must be proposed owner");
+    });
+    it("Should correctly transfer ownership", async () => {
+      await dimoVesting.connect(owner).transferOwnership(newOwner.address);
+
+      await dimoVesting.connect(newOwner).acceptOwnership();
+
+      expect(await dimoVesting.owner()).to.equal(newOwner.address);
+    });
+    it("Should emit OwnershipTransferred event with correct params", async () => {
+      await dimoVesting.connect(owner).transferOwnership(newOwner.address);
+
+      await expect(dimoVesting.connect(newOwner).acceptOwnership())
+        .to.emit(dimoVesting, "OwnershipTransferred")
+        .withArgs(owner.address, newOwner.address);
+    });
   });
 
   describe("createVestingSchedule", function () {
@@ -75,7 +109,7 @@ describe("dimoVesting", function () {
             duration,
             amount
           )
-      ).to.be.revertedWith("Ownable: caller is not the owner");
+      ).to.be.revertedWith("Only callable by owner");
     });
     it("Should revert if vesting schedule is already initialized", async () => {
       await mockToken.transfer(dimoVesting.address, amount);
@@ -187,7 +221,7 @@ describe("dimoVesting", function () {
     it("Should revert if caller is not the owner", async () => {
       await expect(
         dimoVesting.connect(nonOwner).revoke(beneficiary1)
-      ).to.be.revertedWith("Ownable: caller is not the owner");
+      ).to.be.revertedWith("Only callable by owner");
     });
     it("Should revert if beneficiary is already revoked", async () => {
       await dimoVesting.revoke(beneficiary1);
@@ -322,7 +356,7 @@ describe("dimoVesting", function () {
     it("Should revert if amount requested is greater than releasable amount", async () => {
       await expect(
         dimoVesting.release(beneficiary1, amount * 2)
-      ).to.be.revertedWith("Not enough vested tokens");
+      ).to.be.revertedWith("Amount is too high");
     });
 
     context("When only the cliff amount is released", () => {
@@ -444,7 +478,7 @@ describe("dimoVesting", function () {
     it("Should revert if caller is not the owner", async () => {
       await expect(
         dimoVesting.connect(nonOwner).withdraw(100)
-      ).to.be.revertedWith("Ownable: caller is not the owner");
+      ).to.be.revertedWith("Only callable by owner");
     });
     it("Should revert amount is greater than withdrawable amount", async () => {
       await expect(dimoVesting.connect(owner).withdraw(100)).to.be.revertedWith(
