@@ -3,7 +3,7 @@ import { ethers, waffle } from "hardhat";
 
 import { DIMOVesting, MockToken } from "../typechain";
 import { createSnapshot, revertToSnapshot } from "./helpers/snapshot";
-import { VestingSchedule } from "./types";
+import { VestingSchedule } from "../types";
 
 const { solidity } = waffle;
 const provider = waffle.provider;
