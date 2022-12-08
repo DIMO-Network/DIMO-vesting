@@ -9,3 +9,8 @@ export type VestingSchedule = {
   released: BigNumber;
   revoked: boolean;
 };
+
+export interface VestingAddressToBeneficiaries {
+  address: string;
+  beneficiaries: string[];
+}
