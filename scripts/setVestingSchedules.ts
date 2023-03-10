@@ -4,8 +4,8 @@ import { DIMOVesting, MockToken } from "../typechain";
 
 import { vestingData } from "./data/vesting_table";
 
-const DIMO_POLYGON_ADDRESS = "0xE261D618a959aFfFd53168Cd07D12E37B26761db";
-const MULTISIG = "0xCcFa7c808F5b77822e4935a7230F46681c99F4Bc";
+const DIMO_TOKEN = "";
+const OWNER = "";
 
 async function createVestingSchedules(_vestingData: any) {
   const [owner] = await ethers.getSigners();
@@ -13,7 +13,7 @@ async function createVestingSchedules(_vestingData: any) {
   let dimoVesting: DIMOVesting;
   const dimoToken = (await ethers.getContractAt(
     "MockToken",
-    DIMO_POLYGON_ADDRESS
+    DIMO_TOKEN
   )) as MockToken;
 
   console.log(await dimoToken.balanceOf(owner.address));
@@ -77,7 +77,7 @@ async function transferOwnership(_vestingData: any, _newOwner: string) {
 
 async function main() {
   // await createVestingSchedules(vestingData);
-  await transferOwnership(vestingData, MULTISIG);
+  // await transferOwnership(vestingData, OWNER);
 }
 
 main().catch((error) => {
