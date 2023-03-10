@@ -33,8 +33,8 @@ async function main() {
   const [owner] = await ethers.getSigners();
   await revoke(owner, [
     {
-      address: "0x87d93276aE315FbD1a17F0ABaFCb32120D300B19",
-      beneficiaries: ["0x687cf34E83006A10c1C89eC00cEA4Bf308fB4d6E"],
+      address: "",
+      beneficiaries: [""],
     },
   ]);
 }

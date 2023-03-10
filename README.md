@@ -1,5 +1,25 @@
 # DIMO Vesting
-Vesting contract for DIMO tokens
+Vesting contract for distributing DIMO tokens to the team.
+
+The contract can handle multiple vesting schedules at the same time. Each vesting schedule consists of the following attributes:
+
+```solidity
+bool initialized; // if the vesting schedule has been initialized
+uint256 cliffEnd; // time of the end of the cliff period
+uint256 start; // start time of the vesting period
+uint256 duration; // duration of the vesting period in seconds
+uint256 amountTotal; // total amount of tokens to be released at the end of the vesting
+uint256 released; // amount of tokens released
+bool revoked; // whether or not the vesting has been revoked
+```
+
+Each beneficiary `address` is mapped to the set of attributes above. After the `cliffEnd`, the beneficiary is able to redeem the tokens available at that time, that is the proportional accumulated amount between the `start` time and the `cliffEnd`. Thereafter, the tokens can be gradually redeemed at the beneficiary's convenience.
+
+The vesting schedules are revokable by the owner. In this case, the remaining amount not vested are transferred to the owner in the same transaction.
+
+## Documentation
+
+[Dimo documentation](https://docs.dimo.zone/docs)
 
 ## How to run
 
